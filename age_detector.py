@@ -175,7 +175,7 @@ class AgeDetector:
         instances = self._concatenate_instances(instances)
 
         instances, instances_test, labels, labels_test \
-            = cross_validation.train_test_split(instances, labels, test_size=0.2)
+            = cross_validation.train_test_split(instances, labels, test_size=0.2, random_state=1)
 
         print('Starting train')
         self.train(instances, labels)
