@@ -122,7 +122,7 @@ class AgeDetector:
     def _make_clf():
         return Pipeline([
             ('vect', TfidfVectorizer(analyzer=my_analyzer)),
-            ('clf', SGDClassifier(alpha=3e-05,
+            ('clf', SGDClassifier(alpha=1e-05,
                                   penalty='l2',
                                   loss='hinge',
                                   n_iter=50))
@@ -172,16 +172,15 @@ class AgeDetector:
 
     def _test_split(self, instances, labels):
         start_time = time.time()
-        instances = self._concatenate_instances(instances)
 
         instances, instances_test, labels, labels_test \
-            = cross_validation.train_test_split(instances, labels, test_size=0.2, random_state=1)
+            = cross_validation.train_test_split(instances, labels, test_size=0.2, random_state=2)
 
         print('Starting train')
         self.train(instances, labels)
         print('Training done')
 
-        print(accuracy_score(labels_test, self.text_clf.predict(instances_test)))
+        print(accuracy_score(labels_test, self.classify(instances_test)))
         print("--- %.1f minutes ---" % ((time.time() - start_time) / 60))
 
     def test(self):
@@ -197,6 +196,6 @@ class AgeDetector:
         # self.train(instances, labels)
         self._test_split(instances, labels)
 
-if __name__ == '__main__':
-    d = AgeDetector()
-    d.test()
+# if __name__ == '__main__':
+#     d = AgeDetector()
+#     d.test()
