@@ -8,7 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn import cross_validation
 from sklearn.grid_search import GridSearchCV
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
 
 __author__ = 'tpc 2015'
 
@@ -55,7 +55,7 @@ def my_tokenizer(text):
 
 
 def my_analyzer(text):
-    ngram_range = 2
+    ngram_range = 1
     words = my_tokenizer(text)
     ngram_words = []
 
@@ -122,7 +122,7 @@ class AgeDetector:
     def _make_clf():
         return Pipeline([
             ('vect', TfidfVectorizer(analyzer=my_analyzer)),
-            ('clf', SGDClassifier(alpha=5e-08,
+            ('clf', SGDClassifier(alpha=3e-05,
                                   penalty='l2',
                                   loss='hinge',
                                   n_iter=50))
@@ -149,7 +149,7 @@ class AgeDetector:
                                                  instances,
                                                  labels,
                                                  cv=5,
-                                                 scoring='f1',
+                                                 scoring='accuracy',
                                                  # n_jobs=-1,
                                                  verbose=5)
         print(score)
@@ -176,10 +176,12 @@ class AgeDetector:
 
         instances, instances_test, labels, labels_test \
             = cross_validation.train_test_split(instances, labels, test_size=0.2)
-        self.train(instances, labels)
 
+        print('Starting train')
+        self.train(instances, labels)
         print('Training done')
-        print(f1_score(labels_test, self.text_clf.predict(instances_test), pos_label=True))
+
+        print(accuracy_score(labels_test, self.text_clf.predict(instances_test)))
         print("--- %.1f minutes ---" % ((time.time() - start_time) / 60))
 
     def test(self):
@@ -189,11 +191,11 @@ class AgeDetector:
         labels = json.load(json_file_labels)
         instances = json.load(json_file_instances)
 
-        self.test_tokenizer(instances, labels)
+        # self.test_tokenizer(instances, labels)
         # self._cross_validate(instances, labels)
         # self._grid_search(instances, labels)
         # self.train(instances, labels)
-        # self._test_split(instances, labels)
+        self._test_split(instances, labels)
 
 if __name__ == '__main__':
     d = AgeDetector()
