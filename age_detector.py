@@ -3,12 +3,14 @@ import re
 import time
 import nltk
 
+from sklearn.base import TransformerMixin
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn import cross_validation
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler
 
 __author__ = 'tpc 2015'
 
@@ -81,6 +83,24 @@ def my_analyzer(text):
             ngram_words = []
 
 
+class CustomFeatures(TransformerMixin):
+    def fit(self, X, y=None, **params):
+        return self
+
+    def transform(self, texts):
+        print(texts[0])
+        print(len(texts))
+
+
+class SparseTransformer(TransformerMixin):
+    def transform(self, x, y=None, **fit_params):
+        print(x.shape)
+        return x.tosparse()
+
+    def fit(self, X, y=None, **params):
+        return self
+
+
 class AgeDetector:
     def __init__(self):
         with open('stop_words.txt', mode='r', encoding='utf-8') as f:
@@ -124,14 +144,18 @@ class AgeDetector:
     @staticmethod
     def _make_clf():
         return Pipeline([
-            ('vect', TfidfVectorizer(analyzer=my_analyzer)),
+            ('vect', FeatureUnion([
+                ('tfidf', TfidfVectorizer(analyzer=my_analyzer)),
+                ('cust', Pipeline([
+                    ('cust', CustomFeatures()),
+                    ('scaler', StandardScaler())
+                ]))
+            ])),
             ('clf', SGDClassifier(alpha=3e-05,
                                   penalty='l2',
                                   loss='hinge',
                                   n_iter=50))
         ])
-    # 3-5 468
-
 
     def train(self, instances, labels):
         instances = self._concatenate_instances(instances)
@@ -162,7 +186,7 @@ class AgeDetector:
     def test_tokenizer(self, instances, labels):
         instances, labels = self._unfold_instances(instances, labels)
 
-        for i in range(10000):
+        for i in range(50):
         # for i in range(len(instances)):
             instance = instances[i]
             label = labels[i]
