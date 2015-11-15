@@ -62,6 +62,9 @@ def my_analyzer(text):
     for w in words:
         # w = rustem.stem(w)
 
+        if len(w) == 0:
+            continue
+
         if w == '.':
             ngram_words = []
             continue
@@ -122,11 +125,13 @@ class AgeDetector:
     def _make_clf():
         return Pipeline([
             ('vect', TfidfVectorizer(analyzer=my_analyzer)),
-            ('clf', SGDClassifier(alpha=1e-05,
+            ('clf', SGDClassifier(alpha=3e-05,
                                   penalty='l2',
                                   loss='hinge',
                                   n_iter=50))
         ])
+    # 3-5 468
+
 
     def train(self, instances, labels):
         instances = self._concatenate_instances(instances)
@@ -157,14 +162,14 @@ class AgeDetector:
     def test_tokenizer(self, instances, labels):
         instances, labels = self._unfold_instances(instances, labels)
 
-        # for i in range(20):
-        for i in range(len(instances)):
+        for i in range(10000):
+        # for i in range(len(instances)):
             instance = instances[i]
             label = labels[i]
             try:
-                # print(instance)
+                print(instance)
                 for analyzed in my_analyzer(instance):
-                    # print(analyzed)
+                    print(analyzed)
                     pass
             except:
                 pass
@@ -196,6 +201,6 @@ class AgeDetector:
         # self.train(instances, labels)
         self._test_split(instances, labels)
 
-# if __name__ == '__main__':
-#     d = AgeDetector()
-#     d.test()
+if __name__ == '__main__':
+    d = AgeDetector()
+    d.test()
