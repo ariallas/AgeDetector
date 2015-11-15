@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import time
 import nltk
@@ -8,13 +9,12 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn import cross_validation
-from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 __author__ = 'tpc 2015'
 
-word_regexp = re.compile(u"(?u)\w+"
+word_regexp = re.compile(u"(?u)#?\w+"
                          u"|:\)+"
                          u"|;\)+"
                          u"|:\-\)+"
@@ -25,8 +25,7 @@ word_regexp = re.compile(u"(?u)\w+"
                          u"|\?+"
                          u"|\+[0-9]+"
                          u"|\++"
-                         u"|\."
-                         u"|\|")
+                         u"|\.")
 
 
 rustem = nltk.stem.snowball.RussianStemmer()
@@ -51,6 +50,8 @@ def my_tokenizer(text):
             token = '!'
         elif ch == '+':
             token = '+'
+        elif ch == '#':
+            token = '#'
         elif ch.isdigit() or stop_words_regex.match(token):
             continue
         filtered_tokens.append(token)
@@ -68,7 +69,7 @@ def my_analyzer(text):
         if len(w) == 0:
             continue
 
-        if w == '.' or w == '|':
+        if w == '.':
             ngram_words = []
             continue
 
@@ -88,15 +89,48 @@ class CustomFeatures(TransformerMixin):
     def fit(self, X, y=None, **params):
         return self
 
-    def transform(self, texts, y=None, **fit_params):
+    def transform(self, instances, y=None, **fit_params):
         features = []
-        for text in texts:
-            features.append(self._text_features(text))
+        for instance in instances:
+            features.append(self._text_features(instance))
         return features
 
     @staticmethod
-    def _text_features(text):
-        return [0]
+    def _text_features(instance):
+        features = []
+
+        max_len = 0
+        ends_with_smile = 0
+        ends_with_bracket = 0
+        for text in instance:
+            tokens = my_tokenizer(text)
+            if len(tokens) > 0 and tokens[-1] == ':)':
+                ends_with_smile += 1
+            if len(tokens) > 0 and tokens[-1] == ')':
+                ends_with_bracket += 1
+
+            if len(text) > max_len:
+                max_len = len(text)
+
+        features.append(float(max_len))
+        features.append(ends_with_smile / len(instance))
+        features.append(ends_with_bracket / len(instance))
+        return features
+
+
+class ConcatenateTransformer(TransformerMixin):
+    def fit(self, X, y=None, **params):
+        return self
+
+    def transform(self, instances, y=None, **fit_params):
+        new_instances = []
+        for instance in instances:
+            concatenated = ''
+            for text in instance:
+                concatenated += ' ' + text
+            new_instances.append(concatenated)
+        return new_instances
+
 
 class AgeDetector:
     def __init__(self):
@@ -119,44 +153,25 @@ class AgeDetector:
         return regex
 
     @staticmethod
-    def _concatenate_instances(instances):
-        new_instances = []
-        for instance in instances:
-            concatenated = ''
-            for text in instance:
-                concatenated += ' | ' + text
-            new_instances.append(concatenated)
-        return new_instances
-
-    @staticmethod
-    def _unfold_instances(instances, labels):
-        new_instances = []
-        new_labels = []
-        for i in range(len(instances)):
-            for text in instances[i]:
-                new_instances.append(text)
-                new_labels.append(labels[i])
-        return new_instances, new_labels
-
-    @staticmethod
     def _make_clf():
         return Pipeline([
             ('vect', FeatureUnion([
-                ('tfidf', TfidfVectorizer(analyzer=my_analyzer)),
+                ('tfidf', Pipeline([
+                    ('concat', ConcatenateTransformer()),
+                    ('tfidf', TfidfVectorizer(analyzer=my_analyzer))
+                ])),
                 ('cust', Pipeline([
                     ('cust', CustomFeatures()),
                     ('scaler', StandardScaler())
                 ]))
             ])),
-            ('clf', SGDClassifier(alpha=3e-05,
+            ('clf', SGDClassifier(alpha=5e-04,
                                   penalty='l2',
                                   loss='hinge',
                                   n_iter=50))
         ])
 
     def train(self, instances, labels):
-        instances = self._concatenate_instances(instances)
-
         global stop_words_regex
         stop_words_regex = self.stop_words_regex
 
@@ -164,12 +179,9 @@ class AgeDetector:
         self.text_clf = text_clf.fit(instances, labels)
 
     def classify(self, instances):
-        instances = self._concatenate_instances(instances)
         return self.text_clf.predict(instances)
 
     def _cross_validate(self, instances, labels):
-        instances, labels = self._unfold_instances(instances, labels)
-
         text_clf = self._make_clf()
         score = cross_validation.cross_val_score(text_clf,
                                                  instances,
@@ -181,9 +193,6 @@ class AgeDetector:
         print(score)
 
     def test_tokenizer(self, instances, labels):
-        instances, labels = self._unfold_instances(instances, labels)
-        # instances = self._concatenate_instances(instances)
-
         for i in range(50):
         # for i in range(len(instances)):
             instance = instances[i]
@@ -216,6 +225,14 @@ class AgeDetector:
 
         labels = json.load(json_file_labels)
         instances = json.load(json_file_instances)
+
+        for i in range(20):
+            j = random.randint(0, len(instances))
+            try:
+                print(instances[j])
+                print(labels[j])
+            except:
+                pass
 
         # self.test_tokenizer(instances, labels)
         # self._cross_validate(instances, labels)
