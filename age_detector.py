@@ -25,7 +25,8 @@ word_regexp = re.compile(u"(?u)\w+"
                          u"|\?+"
                          u"|\+[0-9]+"
                          u"|\++"
-                         u"|\.")
+                         u"|\."
+                         u"|\|")
 
 
 rustem = nltk.stem.snowball.RussianStemmer()
@@ -67,7 +68,7 @@ def my_analyzer(text):
         if len(w) == 0:
             continue
 
-        if w == '.':
+        if w == '.' or w == '|':
             ngram_words = []
             continue
 
@@ -87,19 +88,15 @@ class CustomFeatures(TransformerMixin):
     def fit(self, X, y=None, **params):
         return self
 
-    def transform(self, texts):
-        print(texts[0])
-        print(len(texts))
+    def transform(self, texts, y=None, **fit_params):
+        features = []
+        for text in texts:
+            features.append(self._text_features(text))
+        return features
 
-
-class SparseTransformer(TransformerMixin):
-    def transform(self, x, y=None, **fit_params):
-        print(x.shape)
-        return x.tosparse()
-
-    def fit(self, X, y=None, **params):
-        return self
-
+    @staticmethod
+    def _text_features(text):
+        return [0]
 
 class AgeDetector:
     def __init__(self):
@@ -125,9 +122,9 @@ class AgeDetector:
     def _concatenate_instances(instances):
         new_instances = []
         for instance in instances:
-            concatenated = ""
+            concatenated = ''
             for text in instance:
-                concatenated += ' ' + text
+                concatenated += ' | ' + text
             new_instances.append(concatenated)
         return new_instances
 
@@ -185,6 +182,7 @@ class AgeDetector:
 
     def test_tokenizer(self, instances, labels):
         instances, labels = self._unfold_instances(instances, labels)
+        # instances = self._concatenate_instances(instances)
 
         for i in range(50):
         # for i in range(len(instances)):
