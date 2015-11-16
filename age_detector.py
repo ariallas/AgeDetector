@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 
 __author__ = 'tpc 2015'
 
-word_regexp = re.compile(u"(?u)\w+"
+word_regexp = re.compile(u"(?u)#?\w+"
                          u"|:\)+"
                          u"|;\)+"
                          u"|:\-\)+"
@@ -48,6 +48,8 @@ def my_tokenizer(text):
             token = '!'
         elif ch == '+':
             token = '+'
+        elif ch == '#':
+            token = '#'
         elif ch.isdigit() or stop_words_regex.match(token):
             continue
         filtered_tokens.append(token)
